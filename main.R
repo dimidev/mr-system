@@ -22,7 +22,7 @@ movie_genre <- as.data.frame(movie_data$genres, stringsAsFactors=FALSE)
 movie_genre2 <- as.data.frame(tstrsplit(movie_genre[,1], '[|]', type.convert=TRUE), 
                               stringsAsFactors=FALSE)
 
-col_names(movie_genre2) <- c(1:10)
+colnames(movie_genre2) <- c(1:10)
 
 list_genre <- c("Action", "Adventure", "Animation", "Children", 
                 "Comedy", "Crime","Documentary", "Drama", "Fantasy",
@@ -49,5 +49,22 @@ for (col in 1:ncol(genre_mat2)) {
   genre_mat2[,col] <- as.integer(genre_mat2[,col])
 } 
 
-str(genre_mat2)
+# In the next step of Data Pre-processing of R project, we will create a 
+# ‘search matrix’ that will allow us to perform an easy search of the films 
+# by specifying the genre present in our list.
+SearchMatrix <- cbind(movie_data[,1:2], genre_mat2[])
 
+# For our movie recommendation system to make sense of our ratings through 
+# recommenderlabs, we have to convert our matrix into a sparse matrix one. 
+# This new matrix is of the class ‘realRatingMatrix’.
+ratingMatrix <- dcast(rating_data, userId~movieId, value.var = "rating", na.rm=FALSE)
+
+#remove userIds
+ratingMatrix <- as.matrix(ratingMatrix[,-1])
+
+#Convert rating matrix into a recommenderlab sparse matrix
+ratingMatrix <- as(ratingMatrix, "realRatingMatrix")
+
+recommendation_model <- recommenderRegistry$get_entries(dataType = "realRatingMatrix")
+
+lapply(recommendation_model, "[[", "description")
