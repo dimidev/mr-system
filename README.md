@@ -1,2 +1,1 @@
-# mr-system
-Movie Recommendation System in R Programming Language
+https://data-flair.training/blogs/data-science-r-movie-recommendation/
