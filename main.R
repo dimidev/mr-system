@@ -266,5 +266,21 @@ movies_user2
 recommendation_matrix <- sapply(predicted_recommendations@items,
                                 function(x){ as.integer(colnames(movie_ratings)[x]) }) 
 # dim(recommendation_matrix)
-recommendation_matrix[,1:4]
+recommendation_matrix[,1:5]
 
+number_of_items <- factor(table(recommendation_matrix))
+chart_title <- "Distribution of the Number of Items for IBCF"
+
+qplot(number_of_items, fill=I("steelblue"), col=I("red")) + ggtitle(chart_title)
+
+number_of_items_sorted <- sort(number_of_items, decreasing = TRUE)
+number_of_items_top <- head(number_of_items_sorted, n = 5)
+table_top <- data.frame(as.integer(names(number_of_items_top)),
+                        number_of_items_top)
+for(i in 1:5) {
+  table_top[i,1] <- as.character(subset(movie_data,
+                                        movie_data$movie_id == table_top[i,1])$title)
+}
+
+colnames(table_top) <- c("Movie Title", "No. of Items")
+head(table_top)
