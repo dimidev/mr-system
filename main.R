@@ -1,25 +1,26 @@
-# Loading required packages
+# Φόρτωση απαιτούμενων πακέτων 
 library(recommenderlab)
 
 library(ggplot2)
 library(data.table)
 library(reshape2)
 
-#== RETRIEVING THE DATA ==
-# Retrieve our data from movies.csv into movie_data dataframe and 
-# ratings.csv into rating_data.
+#== ΑΝΑΚΤΗΣΗ ΔΕΔΟΜΕΝΩΝ ==
+# Ανάκτηση δεδομένων απο το αρχείο movies.csv στο dataframe movie_data και
+# τα δεδομένα αρχείου ratings.csv στο dataframe rating_data.
 setwd("./dataset")
 movie_data <- read.csv("movies.csv", stringsAsFactors=FALSE)
 rating_data <- read.csv("ratings.csv")
 
-summary(movie_data) # overview the summary of the movies 
-summary(rating_data) # overview the summary of the ratings 
+summary(movie_data) # επισκόπηση δεδομένων ταινιών 
+summary(rating_data) # επισκόπηση δεδομένω βαθμολογιών 
 
-#== DATA PRE-PROCESSING ==
-# From the above table, we observe that the user_id column and movie_id column
-# consist of integers. We need to convert the genres present in the movie_data 
-# dataframe into a more usable format by the users. In order to do so, we will 
-# first create a matrix that shows of corresponding genres for each of the films.
+#== ΠΡΟΕΠΕΞΕΡΓΑΣΙΑ ΔΕΔΟΜΕΝΩΝ ==
+# Από τον παραπάνω πίνακα, παρατηρούμε ότι η στήλες user_id και movie_id
+# αποτελούνται από ακέραιους αριθμούς. Πρέπει να μετατρέψουμε τα είδη (genres) 
+# που υπάρχουν στο movie_data dataframe σε μια πιο εύχρηστη μορφή από τους χρήστες.
+# Για να το καταφέρουμε, πρέπει αρχικά  να δημιουργήσουμε matrix που να δείχνει
+# αντίστοιχα είδη για καθεμία από τις ταινίες.
 movie_genre <- as.data.frame(movie_data$genres, stringsAsFactors=FALSE)
 movie_genre2 <- as.data.frame(tstrsplit(movie_genre[,1], '[|]', type.convert=TRUE), 
                               stringsAsFactors=FALSE)
@@ -42,159 +43,114 @@ for (index in 1:nrow(movie_genre2)) {
   }
 }
 
-# remove first row, which was the genre list
+# καταργήστε την πρώτη σειρά, που ήταν η λίστα των ειδών 
 genre_mat2 <- as.data.frame(genre_mat1[-1,], stringsAsFactors=FALSE)
 
 for (col in 1:ncol(genre_mat2)) {
-  # convert from characters to integers
+  # μετατροπή από χαρακτήρες σε ακέραιους αριθμούς 
   genre_mat2[,col] <- as.integer(genre_mat2[,col])
 } 
 
-str(genre_mat2)
-
-# In the next step we will create a ‘search matrix’ that will allow us to 
-# perform an easy search of the films by specifying the genre present in our list.
-SearchMatrix <- cbind(movie_data[,1:2], genre_mat2[])
-head(SearchMatrix)
-
-# For our movie recommendation system to make sense of our ratings through 
-# recommenderlabs, we have to convert our matrix into a sparse matrix one. 
-# This new matrix is of the class ‘realRatingMatrix’.
+# Για να βγάζει νόημα το σύστημα μας μέσω τον βαθμολογιών μέσω του πακέτου 
+# recommenderlabs, πρέπει να μετατρέψουμε το matrix σε sparse matrix 
+# Το νέο matrix είναι κλάσης ‘realRatingMatrix’.
 ratingMatrix <- dcast(rating_data, user_id~movie_id, value.var = "rating", na.rm=FALSE)
-ratingMatrix <- as.matrix(ratingMatrix[,-1]) # Remove userIds
+ratingMatrix <- as.matrix(ratingMatrix[,-1]) # διαγραφή userIds
 
-# Convert rating matrix into a recommenderlab sparse matrix
+# Μετατροπή matrix βαθμολογιών σε sparse matrix του πακέτου recommenderlab
 ratingMatrix <- as(ratingMatrix, "realRatingMatrix")
-ratingMatrix
 
 recommendation_model <- recommenderRegistry$get_entries(dataType = "realRatingMatrix")
-names(recommendation_model)
 
 lapply(recommendation_model, "[[", "description")
 
-# We will implement a single model. Item Based Collaborative Filtering.
-recommendation_model$IBCF_realRatingMatrix$parameters
-
-#== EXPLORING SILIAR DATA ==
-# In the below matrix, each row and column represents a user. 
-# We have taken four users and each cell in this matrix represents the similarity
-# that is shared between the two users.
-similarity_mat <- similarity(ratingMatrix[1:4, ],
-                             method = "cosine",
-                             which = "users")
-as.matrix(similarity_mat)
-image(as.matrix(similarity_mat), main = "User's Similarities")
-
-# Now, we delineate the similarity that is shared between the films
-movie_similarity <- similarity(ratingMatrix[, 1:4], method = "cosine", which = "items")
-as.matrix(movie_similarity)
-image(as.matrix(movie_similarity), main = "Movies Similarity")
-
-# Extracting unique ratings
-rating_values <- as.vector(ratingMatrix@data)
-unique(rating_values)
-
-# Creating a count of movie ratings
-Table_of_Ratings <- table(rating_values)
-Table_of_Ratings
-
-#== MOST VIEWED MOVIES VISUALIZATION ==
-# In this section we will explore the most viewed movies in our dataset. 
-# We will first count the number of views in a film and then organize them in 
-# a table that would group them in descending order.
+#== ΟΠΤΙΚΟΠΟΙΗΣΗ ΤΑΙΝΙΩΝ ΜΕ ΤΗΣ ΠΕΡΙΣΣΟΤΕΡΕΣ ΠΡΟΒΟΛΕΣ ==
+# Αρχικα Θα μετρήσουμε πρώτα τον αριθμό των προβολών σε μια ταινία και μετά θα 
+# τις οργανώσουμε σε έναν πίνακα που θα τους ομαδοποιούσε σε φθίνουσα σειρά.
 movie_views <- colCounts(ratingMatrix) # count views for each movie
 table_views <- data.frame(movie = names(movie_views),
-                          views = movie_views) # create dataframe of views
+                          views = movie_views) # δημιουργία dataframe των προβολών
 table_views <- table_views[order(table_views$views,
-                                 decreasing = TRUE), ] # sort by number of views
+                                 decreasing = TRUE), ] # ταξινόμηση με βάση τον αριθμό των προβολών
 table_views$title <- NA
 for (index in 1:10325){
   table_views[index,3] <- as.character(subset(movie_data,
                                               movie_data$movie_id == table_views[index,1])$title)
 }
-table_views[1:6,]
 
-# Now, we will visualize a bar plot for the total number of views 
-# of the top films. We will carry this out using ggplot2.
+# Τώρα θα απεικονίσουμε μια γραφική παράσταση για τον συνολικό αριθμό προβολών 
+# από τις κορυφαίες ταινίες. Θα το πραγματοποιήσουμε χρησιμοποιώντας το ggplot2.
 ggplot(table_views[1:6, ], aes(x = title, y = views)) +
   geom_bar(stat="identity", fill = 'steelblue') +
   geom_text(aes(label=views), vjust=-0.3, size=3.5) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
   ggtitle("Total Views of the Top Films")
 
-#== HEATMAP OF MOVIE RATINGS ==
-# Now we will visualize a heatmap of the movie ratings. This heatmap will contain
-# first 25 rows and 25 columns as follows
-image(ratingMatrix[1:20, 1:25], axes = FALSE, main = "Heatmap of the first 25 rows and 25 columns")
-
-# PERFORMING DATA PREPARATION
-# For finding useful data in our dataset, we have set the threshold for the minimum
-# number of users who have rated a film as 50. This is also same for minimum number
-# of views that are per film. This way, we have filtered a list of watched films 
-# from least-watched ones.
+# ΠΡΟΕΤΟΙΜΑΣΙΑ ΔΕΔΟΜΕΝΩΝ 
+# Για την εύρεση χρήσιμων δεδομένων στο μας, έχουμε ορίσει το κατώτατο όριο για 
+# τον ελάχιστο αριθμό χρηστών που έχουν αξιολογήσει μια ταινία ως 50. Αυτό είναι
+# επίσης ίδιο για τον ελάχιστο αριθμό προβολών ανά ταινία. Με αυτόν τον τρόπο, 
+# φιλτράραμε μια λίστα με ταινίες που παρακολουθήθηκαν από ταινίες με τις λιγότερες. 
 movie_ratings <- ratingMatrix[rowCounts(ratingMatrix) > 50,
                               colCounts(ratingMatrix) > 50]
 movie_ratings
 
-# From the above output of ‘movie_ratings’, we observe that there are 420 users 
-# and 447 films as opposed to the previous 668 users and 10325 films. We can now 
-# delineate our matrix of relevant users as follows
+# Από την παραπάνω έξοδο του ‘movie_ratings’, παρατηρούμε ότι υπάρχουν 420 χρήστες 
+# και 447 ταινίες σε αντίθεση με τους προηγούμενους 668 χρήστες και 10325 ταινίες. 
+# Μπορούμε τώρα οριοθετήστε τo matrix των σχετικών χρηστών ως εξής.
 minimum_movies<- quantile(rowCounts(movie_ratings), 0.98)
 minimum_users <- quantile(colCounts(movie_ratings), 0.98)
-image(movie_ratings[rowCounts(movie_ratings) > minimum_movies,
-                    colCounts(movie_ratings) > minimum_users],
-      main = "Heatmap of the top users and movies")
 
-# Now, we will visualize the distribution of the average ratings per user.
+# Τώρα, θα απεικονίσουμε την κατανομή της μέσης βαθμολογίας ανά χρήστη. 
 average_ratings <- rowMeans(movie_ratings)
 qplot(average_ratings, fill=I("steelblue"), col=I("red")) +
   ggtitle("Distribution of the average rating per user")
 
-#== DATA NORMALIZATION ==
-# In the case of some users, there can be high ratings or low ratings provided 
-# to all of the watched films. This will act as a bias while implementing our model.
-# In order to remove this, we normalize our data. Normalization is a data 
-# preparation procedure to standardize the numerical values in a column to a 
-# common scale value. This is done in such a way that there is no distortion 
-# in the range of values. Normalization transforms the average value of our 
-# ratings column to 0. We then plot a heatmap that delineates our normalized ratings.
+#== ΚΑΝΟΝΙΚΟΠΟΙΗΣΗ ΔΕΔΟΜΕΝΩΝ ==
+# Στην περίπτωση ορισμένων χρηστών, μπορεί να υπάρχουν υψηλές ή χαμηλές βαθμολογίες
+# σε όλες τις ταινίες που παρακολουθήσατε. Αυτό θα λειτουργήσει ως προκατάληψη 
+# κατά την εφαρμογή του μοντέλου μας. Για να το καταργήσουμε, ομαλοποιούμε τα 
+# δεδομένα μας. Η κανονικοποίηση είναι μια διαδικασία προετοιμασίας δεδομένων 
+# για την τυποποίηση των αριθμητικών τιμών σε μια στήλη σε μια κοινή τιμή κλίμακας.
+# Αυτό γίνεται με τέτοιο τρόπο ώστε να μην υπάρχει παραμόρφωση στο εύρος τιμών. 
+# Η κανονικοποίηση μετατρέπει τη μέση τιμή της στήλης αξιολογήσεων σε 0. Στη 
+# συνέχεια σχεδιάζουμε έναν heatmap που οριοθετεί τις κανονικοποιημένες βαθμολογίες μας. 
 normalized_ratings <- normalize(movie_ratings)
-sum(rowMeans(normalized_ratings) > 0.00001)
 image(normalized_ratings[rowCounts(normalized_ratings) > minimum_movies,
                          colCounts(normalized_ratings) > minimum_users],
                          main = "Normalized Ratings of the Top Users")
 
-#== PERFORMING DATA BINARIZATION ==
-# In the final step of our data preparation, we will binarize our data. 
-# Binarizing the data means that we have two discrete values 1 and 0, which 
-# will allow our recommendation systems to work more efficiently. We will define 
-# a matrix that will consist of 1 if the rating is above 3 and otherwise it will be 0.
+#== ΜΕΤΑΤΡΟΠΗ ΔΕΔΟΜΕΝΩΝ ΣΕ ΔΥΑΔΙΚΗ ΜΟΡΦΗ ==
+# Στο τελευταίο βήμα της προετοιμασίας των δεδομένων μας, θα μετατρέψουμε τα δεδομένα μας 
+# σε δυαδική μορφή. Αυτό σημαίνει ότι θα έχουμε δύο διακριτές τιμές 1 και 0, 
+# που θα επιτρέψει στα συστήματά μας να λειτουργούν πιο αποτελεσματικά. We will define 
+# Θα ορίσουμε ένα matrix που θα αποτελείται από 1 εάν η βαθμολογία είναι πάνω 
+# από 3, διαφορετικά θα είναι 0. 
 binary_minimum_movies <- quantile(rowCounts(movie_ratings), 0.95)
 binary_minimum_users <- quantile(colCounts(movie_ratings), 0.95)
-#movies_watched <- binarize(movie_ratings, minRating = 1)
 
 good_rated_films <- binarize(movie_ratings, minRating = 3)
 image(good_rated_films[rowCounts(movie_ratings) > binary_minimum_movies,
                        colCounts(movie_ratings) > binary_minimum_users],
                       main = "Heatmap of the top users and movies")
 
-#== COLLABORATIVE FILTERING SYSTEM ==
-# In this section we will develop Item Based Collaborative Filtering System. 
-# This type of collaborative filtering finds similarity in the items based on 
-# the people’s ratings of them. The algorithm first builds a similar-items table
-# of the customers who have purchased them into a combination of similar items. 
-# This is then fed into the recommendation system.
+#== ΣΥΛΛΟΓΙΚΟ ΣΥΣΤΗΜΑ ΦΙΛΤΡΑΡΙΣΜΑΤΟΣ  ==
+# Σε αυτήν την ενότητα θα αναπτύξουμε ένα Σύστημα Φιλτραρίσματος Βασισμένο σε Στοιχεία. 
+# Αυτός ο τύπος φιλτραρίσματος βρίσκει ομοιότητα στα στοιχεία με βάση τις 
+# βαθμολογίες. Ο αλγόριθμος δημιουργεί πρώτα έναν πίνακα παρόμοιων αντικειμένων 
+# των πελατών που τα αγόρασαν σε συνδυασμό παρόμοιων αντικειμένων. Αυτό στη 
+# συνέχεια τροφοδοτείται στο σύστημα προτάσεων. 
 
-# The similarity between single products and related products can be determined 
-# with the following algorithm:
+# Η ομοιότητα μεταξύ μεμονωμένων προϊόντων και συναφών προϊόντων μπορεί να 
+# προσδιοριστεί με τον ακόλουθο αλγόριθμο: 
 
-# - For each Item i1 present in the product catalog, purchased by customer C.
-# - And, for each item i2 also purchased by the customer C.
-# - Create record that the customer purchased items i1 and i2.
-# - Calculate the similarity between i1 and i2.
+# - Για κάθε είδος i1 που υπάρχει στον κατάλογο προϊόντων, που αγοράστηκε από τον πελάτη C.
+# - Και, για κάθε είδος, το i2 αγοράστηκε επίσης από τον πελάτη C. 
+# - Δημιουργήστε εγγραφή ότι ο πελάτης αγόρασε τα αντικείμενα i1 και i2. 
+# - Υπολογίστε την ομοιότητα μεταξύ i1 και i2. 
 
-# We will build this filtering system by splitting the dataset into 80% training 
-# set and 20% test set.
+# Θα δημιουργήσουμε αυτό το σύστημα φιλτραρίσματος χωρίζοντας το σύνολο δεδομένων 
+# σε 80% training set και 20% test set. 
 sampled_data<- sample(x = c(TRUE, FALSE),
                       size = nrow(movie_ratings),
                       replace = TRUE,
@@ -202,71 +158,60 @@ sampled_data<- sample(x = c(TRUE, FALSE),
 training_data <- movie_ratings[sampled_data, ]
 testing_data <- movie_ratings[!sampled_data, ]
 
-#== BUILDING THE RECOMMENDATION SYSTEM USING R ==
+#== ΠΩΣ ΝΑ ΔΗΜΙΟΥΡΓΗΣΕΤΕ ΣΥΣΤΗΜΑ ΠΡΟΤΑΣΗΣ ΤΑΙΝΙΩΝ ΧΡΗΣΗ R  ==
 # We will now explore the various parameters of our Item Based Collaborative Filter.
 # These parameters are default in nature. In the first step, k denotes the number of 
 # items for computing their similarities. Here, k is equal to 30. Therefore, the 
 # algorithm will now identify the k most similar items and store their number. We 
 # use the cosine method which is the default one but you can also use pearson method.
 recommendation_system <- recommenderRegistry$get_entries(dataType ="realRatingMatrix")
-recommendation_system$IBCF_realRatingMatrix$parameters
 
 recommen_model <- Recommender(data = training_data,
                               method = "IBCF",
                               parameter = list(k = 30))
-recommen_model
-class(recommen_model)
 
-# Using the getModel() function, we will retrieve the recommen_model. We will 
-# then find the class and dimensions of our similarity matrix that is contained 
-# within model_info. Finally, we will generate a heatmap, that will contain the 
-# top 20 items and visualize the similarity shared between them.
+# Χρησιμοποιώντας την συνάρτηση getModel(), θα ανακτήσουμε το προτεινόμενο μοντέλο.
+# Στη συνέχεια, θα βρούμε την κλάση και τις διαστάσεις του πίνακα που περιέχεται  
+# στις πληροφορίες του μοντέλου. Τέλος, θα δημιουργήσουμε έναν heatmap, 
+# που θα περιέχει τα 20 κορυφαία στοιχεία και θα απεικονίσουμε την ομοιότητα μεταξύ τους. 
 model_info <- getModel(recommen_model)
-class(model_info$sim)
-dim(model_info$sim)
 top_items <- 20
 image(model_info$sim[1:top_items, 1:top_items], 
       main = "Heatmap of the first rows and columns")
 
-# In the next step of ML project, we will carry out the sum of rows and 
-# columns with the similarity of the objects above 0. We will visualize the 
-# sum of columns through a distribution as follows
+# Στο επόμενο βήμα θα εκτελέσουμε το άθροισμα των γραμμών και των στηλών με την
+# ομοιότητα των αντικειμένων πάνω από 0. Θα απεικονίσουμε το άθροισμα των στηλών
+# μέσω μιας κατανομής ως εξής 
 sum_rows <- rowSums(model_info$sim > 0)
-table(sum_rows)
 sum_cols <- colSums(model_info$sim > 0)
 qplot(sum_cols, fill=I("steelblue"), col=I("red"))+ ggtitle("Distribution of the column count")
 
 sum_rows <- rowSums(model_info$sim > 0)
-table(sum_rows)
 sum_cols <- colSums(model_info$sim > 0)
 qplot(sum_cols, fill=I("steelblue"), col=I("red"))+ ggtitle("Distribution of the column count")
 
-#== HOW TO BUILD RECOMMENDER SYSTEM ON DATASET USRING R ==
-# We will create a top_recommendations variable which will be initialized to 10, 
-# specifying the number of films to each user. We will then use the predict() 
-# function that will identify similar items and will rank them appropriately. 
-# Here, each rating is used as a weight. Each weight is multiplied with related 
-# similarities. Finally, everything is added in the end.
-top_recommendations <- 10 # the number of items to recommend to each user
+#== ΠΩΣ ΝΑ ΔΗΜΙΟΥΡΓΗΣΕΤΕ ΣΥΣΤΗΜΑ ΠΡΟΤΑΣΗΣ ΤΑΙΝΙΩΝ ΧΡΗΣΗ R  ==
+# Θα δημιουργήσουμε μια μεταβλητή top_recommendations που θα αρχικοποιηθεί με 
+# τιμή 10, καθορίζοντας τον αριθμό των ταινιών σε κάθε χρήστη. Στη συνέχεια, θα 
+# χρησιμοποιήσουμε τη λειτουργία predict() που θα αναγνωρίσει παρόμοια στοιχεία 
+# και θα τα ταξινομήσει κατάλληλα. Εδώ, κάθε βαθμολογία χρησιμοποιείται ως βάρος.
+# Κάθε βάρος πολλαπλασιάζεται με σχετικές ομοιότητες. Τέλος, όλα προστίθενται. 
+top_recommendations <- 10 # αριθμός των στοιχείων που πρέπει να προτείνονται σε κάθε χρήστη 
 predicted_recommendations <- predict(object = recommen_model,
                                      newdata = testing_data,
                                      n = top_recommendations)
-predicted_recommendations
 
-user1 <- predicted_recommendations@items[[1]] # recommendation for the first user
+user1 <- predicted_recommendations@items[[1]] # πρόταση για τον πρώτο χρήστη 
 movies_user1 <- predicted_recommendations@itemLabels[user1]
 movies_user2 <- movies_user1
 for (index in 1:10){
   movies_user2[index] <- as.character(subset(movie_data,
                                              movie_data$movie_id == movies_user1[index])$title)
 }
-movies_user2
 
-# matrix with the recommendations for each user
+# matrix με τις συστάσεις για κάθε χρήστη 
 recommendation_matrix <- sapply(predicted_recommendations@items,
                                 function(x){ as.integer(colnames(movie_ratings)[x]) }) 
-# dim(recommendation_matrix)
-recommendation_matrix[,1:5]
 
 number_of_items <- factor(table(recommendation_matrix))
 chart_title <- "Distribution of the Number of Items for IBCF"
