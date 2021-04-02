@@ -84,7 +84,7 @@ ggplot(table_views[1:6, ], aes(x = title, y = views)) +
   geom_bar(stat="identity", fill = 'steelblue') +
   geom_text(aes(label=views), vjust=-0.3, size=3.5) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-  ggtitle("Total Views of the Top Films")
+  ggtitle("Συνολικές προβολές των κορυφαίων ταινιών")
 
 # ΠΡΟΕΤΟΙΜΑΣΙΑ ΔΕΔΟΜΕΝΩΝ 
 # Για την εύρεση χρήσιμων δεδομένων στο μας, έχουμε ορίσει το κατώτατο όριο για 
@@ -104,7 +104,7 @@ minimum_users <- quantile(colCounts(movie_ratings), 0.98)
 # Τώρα, θα απεικονίσουμε την κατανομή της μέσης βαθμολογίας ανά χρήστη. 
 average_ratings <- rowMeans(movie_ratings)
 qplot(average_ratings, fill=I("steelblue"), col=I("red")) +
-  ggtitle("Distribution of the average rating per user")
+  ggtitle("Κατανομή της μέσης βαθμολογίας ανά χρήστη")
 
 #== ΚΑΝΟΝΙΚΟΠΟΙΗΣΗ ΔΕΔΟΜΕΝΩΝ ==
 # Στην περίπτωση ορισμένων χρηστών, μπορεί να υπάρχουν υψηλές ή χαμηλές βαθμολογίες
@@ -118,7 +118,7 @@ qplot(average_ratings, fill=I("steelblue"), col=I("red")) +
 normalized_ratings <- normalize(movie_ratings)
 image(normalized_ratings[rowCounts(normalized_ratings) > minimum_movies,
                          colCounts(normalized_ratings) > minimum_users],
-                         main = "Normalized Ratings of the Top Users")
+                         main = "Κανονικοποιημένες βαθμολογίες των κορυφαίων χρηστών")
 
 #== ΜΕΤΑΤΡΟΠΗ ΔΕΔΟΜΕΝΩΝ ΣΕ ΔΥΑΔΙΚΗ ΜΟΡΦΗ ==
 # Στο τελευταίο βήμα της προετοιμασίας των δεδομένων μας, θα μετατρέψουμε τα δεδομένα μας 
@@ -132,7 +132,7 @@ binary_minimum_users <- quantile(colCounts(movie_ratings), 0.95)
 good_rated_films <- binarize(movie_ratings, minRating = 3)
 image(good_rated_films[rowCounts(movie_ratings) > binary_minimum_movies,
                        colCounts(movie_ratings) > binary_minimum_users],
-                      main = "Heatmap of the top users and movies")
+                      main = "Heatmap των κορυφαίων χρηστών και ταινιών")
 
 #== ΣΥΛΛΟΓΙΚΟ ΣΥΣΤΗΜΑ ΦΙΛΤΡΑΡΙΣΜΑΤΟΣ  ==
 # Σε αυτήν την ενότητα θα αναπτύξουμε ένα Σύστημα Φιλτραρίσματος Βασισμένο σε Στοιχεία. 
@@ -177,18 +177,14 @@ recommen_model <- Recommender(data = training_data,
 model_info <- getModel(recommen_model)
 top_items <- 20
 image(model_info$sim[1:top_items, 1:top_items], 
-      main = "Heatmap of the first rows and columns")
+      main = "Heatmap των πρώτων γραμμών και στηλών")
 
 # Στο επόμενο βήμα θα εκτελέσουμε το άθροισμα των γραμμών και των στηλών με την
 # ομοιότητα των αντικειμένων πάνω από 0. Θα απεικονίσουμε το άθροισμα των στηλών
 # μέσω μιας κατανομής ως εξής 
 sum_rows <- rowSums(model_info$sim > 0)
 sum_cols <- colSums(model_info$sim > 0)
-qplot(sum_cols, fill=I("steelblue"), col=I("red"))+ ggtitle("Distribution of the column count")
-
-sum_rows <- rowSums(model_info$sim > 0)
-sum_cols <- colSums(model_info$sim > 0)
-qplot(sum_cols, fill=I("steelblue"), col=I("red"))+ ggtitle("Distribution of the column count")
+qplot(sum_cols, fill=I("steelblue"), col=I("red"))+ ggtitle("Κατανομή του αριθμού των στηλών")
 
 #== ΠΩΣ ΝΑ ΔΗΜΙΟΥΡΓΗΣΕΤΕ ΣΥΣΤΗΜΑ ΠΡΟΤΑΣΗΣ ΤΑΙΝΙΩΝ ΧΡΗΣΗ R  ==
 # Θα δημιουργήσουμε μια μεταβλητή top_recommendations που θα αρχικοποιηθεί με 
@@ -214,7 +210,7 @@ recommendation_matrix <- sapply(predicted_recommendations@items,
                                 function(x){ as.integer(colnames(movie_ratings)[x]) }) 
 
 number_of_items <- factor(table(recommendation_matrix))
-chart_title <- "Distribution of the Number of Items for IBCF"
+chart_title <- "Κατανομή του αριθμού στοιχείων για το Item Based Collaborative Filter"
 
 qplot(number_of_items, fill=I("steelblue"), col=I("red")) + ggtitle(chart_title)
 
@@ -227,5 +223,5 @@ for(i in 1:5) {
                                         movie_data$movie_id == table_top[i,1])$title)
 }
 
-colnames(table_top) <- c("Movie Title", "No. of Items")
+colnames(table_top) <- c("Τίτλος Tαινίας ", "Αριθμός αντικειμένων")
 head(table_top)
