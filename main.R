@@ -1,9 +1,47 @@
 # Φόρτωση απαιτούμενων πακέτων 
+library(shiny)
+library(shinythemes)
+library(dplyr)
+library(readr)
+
 library(recommenderlab)
 
 library(ggplot2)
 library(data.table)
 library(reshape2)
+
+# Define UI
+ui <- fluidPage(
+  titlePanel("Movie Recomendations System"),
+  sidebarLayout(
+    sidebarPanel(
+      selectInput("select", 
+                  h3("Επιλογή Διαγράμματος"), 
+                  choices = list(
+                    "Προβολές των κορυφαίων ταινιών" = 1, 
+                    "Κατανομή της μέσης βαθμολογίας ανά χρήστη" = 2, 
+                    "Κανονικοποιημένες βαθμολογίες των κορυφαίων χρηστών" = 3,
+                    "Heatmap των κορυφαίων χρηστών και ταινιών" = 4,
+                    "Κατανομή του αριθμού των στηλών" = 5,
+                    "Κατανομή του αριθμού στοιχείων για το Item Based Collaborative Filter" = 6
+                  ), 
+                  selected = 1)
+    ),
+    mainPanel(
+      p("Τα αποτελέσματα προκύπτουν απο τα δεδομένα που βρίσκοντε στα αρχεια movies.csv και ratings.csv"),
+      hr(),
+    )
+  )
+)
+
+
+# Define server logic
+server <- function(input, output) {
+  
+}
+
+# Run the app
+shinyApp(ui = ui, server = server)
 
 #== ΑΝΑΚΤΗΣΗ ΔΕΔΟΜΕΝΩΝ ==
 # Ανάκτηση δεδομένων απο το αρχείο movies.csv στο dataframe movie_data και
@@ -12,8 +50,9 @@ setwd("./dataset")
 movie_data <- read.csv("movies.csv", stringsAsFactors=FALSE)
 rating_data <- read.csv("ratings.csv")
 
-summary(movie_data) # επισκόπηση δεδομένων ταινιών 
-summary(rating_data) # επισκόπηση δεδομένω βαθμολογιών 
+# summary(movie_data) # επισκόπηση δεδομένων ταινιών 
+# summary(rating_data) # επισκόπηση δεδομένω βαθμολογιών
+
 
 #== ΠΡΟΕΠΕΞΕΡΓΑΣΙΑ ΔΕΔΟΜΕΝΩΝ ==
 # Από τον παραπάνω πίνακα, παρατηρούμε ότι η στήλες user_id και movie_id
@@ -43,6 +82,7 @@ for (index in 1:nrow(movie_genre2)) {
   }
 }
 
+
 # καταργήστε την πρώτη σειρά, που ήταν η λίστα των ειδών 
 genre_mat2 <- as.data.frame(genre_mat1[-1,], stringsAsFactors=FALSE)
 
@@ -67,24 +107,26 @@ lapply(recommendation_model, "[[", "description")
 #== ΟΠΤΙΚΟΠΟΙΗΣΗ ΤΑΙΝΙΩΝ ΜΕ ΤΗΣ ΠΕΡΙΣΣΟΤΕΡΕΣ ΠΡΟΒΟΛΕΣ ==
 # Αρχικα Θα μετρήσουμε πρώτα τον αριθμό των προβολών σε μια ταινία και μετά θα 
 # τις οργανώσουμε σε έναν πίνακα που θα τους ομαδοποιούσε σε φθίνουσα σειρά.
-movie_views <- colCounts(ratingMatrix) # count views for each movie
-table_views <- data.frame(movie = names(movie_views),
-                          views = movie_views) # δημιουργία dataframe των προβολών
-table_views <- table_views[order(table_views$views,
-                                 decreasing = TRUE), ] # ταξινόμηση με βάση τον αριθμό των προβολών
-table_views$title <- NA
-for (index in 1:10325){
-  table_views[index,3] <- as.character(subset(movie_data,
-                                              movie_data$movie_id == table_views[index,1])$title)
+total_views <- function(){
+  movie_views <- colCounts(ratingMatrix) # count views for each movie
+  table_views <- data.frame(movie = names(movie_views),
+                            views = movie_views) # δημιουργία dataframe των προβολών
+  table_views <- table_views[order(table_views$views,
+                                   decreasing = TRUE), ] # ταξινόμηση με βάση τον αριθμό των προβολών
+  table_views$title <- NA
+  for (index in 1:10325){
+    table_views[index,3] <- as.character(subset(movie_data,
+                                                movie_data$movie_id == table_views[index,1])$title)
+  }
+  
+  # Τώρα θα απεικονίσουμε μια γραφική παράσταση για τον συνολικό αριθμό προβολών 
+  # από τις κορυφαίες ταινίες. Θα το πραγματοποιήσουμε χρησιμοποιώντας το ggplot2.
+  ggplot(table_views[1:6, ], aes(x = title, y = views)) +
+    geom_bar(stat="identity", fill = 'steelblue') +
+    geom_text(aes(label=views), vjust=-0.3, size=3.5) +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+    ggtitle("Συνολικές προβολές των κορυφαίων ταινιών")
 }
-
-# Τώρα θα απεικονίσουμε μια γραφική παράσταση για τον συνολικό αριθμό προβολών 
-# από τις κορυφαίες ταινίες. Θα το πραγματοποιήσουμε χρησιμοποιώντας το ggplot2.
-ggplot(table_views[1:6, ], aes(x = title, y = views)) +
-  geom_bar(stat="identity", fill = 'steelblue') +
-  geom_text(aes(label=views), vjust=-0.3, size=3.5) +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-  ggtitle("Συνολικές προβολές των κορυφαίων ταινιών")
 
 # ΠΡΟΕΤΟΙΜΑΣΙΑ ΔΕΔΟΜΕΝΩΝ 
 # Για την εύρεση χρήσιμων δεδομένων στο μας, έχουμε ορίσει το κατώτατο όριο για 
